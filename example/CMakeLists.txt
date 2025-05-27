@@ -1,12 +1,14 @@
 # ----- Find dependencies -----
 
+# filesystem
+set(filesystem_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/3rd/filesystem/include)
+
 # popl
 set(popl_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/3rd/popl/include)
 
-set(USE_STACK_TRACE_LOGGER OFF CACHE BOOL "Enable automatic stack trace logger of google-glog")
+set(USE_STACK_TRACE_LOGGER OFF CACHE BOOL "Enable automatic stack trace logger of backward-cpp")
 if(USE_STACK_TRACE_LOGGER)
-    find_package(Glog REQUIRED)
-    include_directories(${GLOG_INCLUDE_DIR})
+    find_package(Backward REQUIRED)
     message(STATUS "Stack trace logger: ENABLED")
 else()
     message(STATUS "Stack trace logger: DISABLED")
@@ -38,26 +40,14 @@ set(EXECUTABLE_TARGETS "")
 add_executable(run_camera_slam run_camera_slam.cc)
 list(APPEND EXECUTABLE_TARGETS run_camera_slam)
 
-add_executable(run_camera_localization run_camera_localization.cc)
-list(APPEND EXECUTABLE_TARGETS run_camera_localization)
-
 add_executable(run_image_slam run_image_slam.cc util/image_util.cc)
 list(APPEND EXECUTABLE_TARGETS run_image_slam)
-
-add_executable(run_image_localization run_image_localization.cc util/image_util.cc)
-list(APPEND EXECUTABLE_TARGETS run_image_localization)
 
 add_executable(run_video_slam run_video_slam.cc)
 list(APPEND EXECUTABLE_TARGETS run_video_slam)
 
-add_executable(run_video_localization run_video_localization.cc)
-list(APPEND EXECUTABLE_TARGETS run_video_localization)
-
 add_executable(run_euroc_slam run_euroc_slam.cc util/euroc_util.cc)
 list(APPEND EXECUTABLE_TARGETS run_euroc_slam)
-
-add_executable(run_euroc_localization run_euroc_localization.cc util/euroc_util.cc)
-list(APPEND EXECUTABLE_TARGETS run_euroc_localization)
 
 add_executable(run_kitti_slam run_kitti_slam.cc util/kitti_util.cc)
 list(APPEND EXECUTABLE_TARGETS run_kitti_slam)
@@ -65,8 +55,8 @@ list(APPEND EXECUTABLE_TARGETS run_kitti_slam)
 add_executable(run_tum_rgbd_slam run_tum_rgbd_slam.cc util/tum_rgbd_util.cc)
 list(APPEND EXECUTABLE_TARGETS run_tum_rgbd_slam)
 
-add_executable(run_tum_rgbd_localization run_tum_rgbd_localization.cc util/tum_rgbd_util.cc)
-list(APPEND EXECUTABLE_TARGETS run_tum_rgbd_localization)
+add_executable(run_loop_closure run_loop_closure.cc)
+list(APPEND EXECUTABLE_TARGETS run_loop_closure)
 
 foreach(EXECUTABLE_TARGET IN LISTS EXECUTABLE_TARGETS)
     # Set output directory for executables
@@ -93,7 +83,7 @@ foreach(EXECUTABLE_TARGET IN LISTS EXECUTABLE_TARGETS)
     # Setup stack trace logger
     if(USE_STACK_TRACE_LOGGER)
         target_compile_definitions(${EXECUTABLE_TARGET} PRIVATE USE_STACK_TRACE_LOGGER)
-        target_link_libraries(${EXECUTABLE_TARGET} PRIVATE ${GLOG_LIBRARIES})
+        target_link_libraries(${EXECUTABLE_TARGET} PRIVATE Backward::Backward)
     endif()
 
     # Setup google-perftools
@@ -102,16 +92,17 @@ foreach(EXECUTABLE_TARGET IN LISTS EXECUTABLE_TARGETS)
         target_link_libraries(${EXECUTABLE_TARGET} PRIVATE ${GPERFTOOLS_LIBRARIES})
     endif()
 
-    # Link OpenVSLAM
+    # Link stella_vslam
     target_link_libraries(${EXECUTABLE_TARGET}
                           PRIVATE
                           ${PROJECT_NAME}
                           opencv_imgcodecs
                           opencv_videoio)
 
-    # include popl and spdlog headers
+    # include 3rd party library headers
     target_include_directories(${EXECUTABLE_TARGET}
                                PRIVATE
                                $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/3rd/popl/include>
+                               $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/3rd/filesystem/include>
                                $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/3rd/spdlog/include>)
 endforeach()

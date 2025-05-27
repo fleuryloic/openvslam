@@ -1,9 +1,9 @@
 #include "socket_publisher/data_serializer.h"
 
-#include "openvslam/data/keyframe.h"
-#include "openvslam/data/landmark.h"
-#include "openvslam/publish/frame_publisher.h"
-#include "openvslam/publish/map_publisher.h"
+#include "stella_vslam/data/keyframe.h"
+#include "stella_vslam/data/landmark.h"
+#include "stella_vslam/publish/frame_publisher.h"
+#include "stella_vslam/publish/map_publisher.h"
 
 #include <forward_list>
 
@@ -16,8 +16,8 @@ namespace socket_publisher {
 
 std::string data_serializer::serialized_reset_signal_{};
 
-data_serializer::data_serializer(const std::shared_ptr<openvslam::publish::frame_publisher>& frame_publisher,
-                                 const std::shared_ptr<openvslam::publish::map_publisher>& map_publisher,
+data_serializer::data_serializer(const std::shared_ptr<stella_vslam::publish::frame_publisher>& frame_publisher,
+                                 const std::shared_ptr<stella_vslam::publish::map_publisher>& map_publisher,
                                  bool publish_points)
     : frame_publisher_(frame_publisher), map_publisher_(map_publisher), publish_points_(publish_points),
       keyframe_hash_map_(new std::unordered_map<unsigned int, double>), point_hash_map_(new std::unordered_map<unsigned int, double>) {
@@ -45,11 +45,11 @@ std::string data_serializer::serialize_messages(const std::vector<std::string>& 
 }
 
 std::string data_serializer::serialize_map_diff() {
-    std::vector<std::shared_ptr<openvslam::data::keyframe>> keyframes;
+    std::vector<std::shared_ptr<stella_vslam::data::keyframe>> keyframes;
     map_publisher_->get_keyframes(keyframes);
 
-    std::vector<std::shared_ptr<openvslam::data::landmark>> all_landmarks;
-    std::set<std::shared_ptr<openvslam::data::landmark>> local_landmarks;
+    std::vector<std::shared_ptr<stella_vslam::data::landmark>> all_landmarks;
+    std::set<std::shared_ptr<stella_vslam::data::landmark>> local_landmarks;
     if (publish_points_) {
         map_publisher_->get_landmarks(all_landmarks, local_landmarks);
     }
@@ -76,10 +76,10 @@ std::string data_serializer::serialize_latest_frame(const unsigned int image_qua
     return base64_serial;
 }
 
-std::string data_serializer::serialize_as_protobuf(const std::vector<std::shared_ptr<openvslam::data::keyframe>>& keyfrms,
-                                                   const std::vector<std::shared_ptr<openvslam::data::landmark>>& all_landmarks,
-                                                   const std::set<std::shared_ptr<openvslam::data::landmark>>& local_landmarks,
-                                                   const openvslam::Mat44_t& current_camera_pose) {
+std::string data_serializer::serialize_as_protobuf(const std::vector<std::shared_ptr<stella_vslam::data::keyframe>>& keyfrms,
+                                                   const std::vector<std::shared_ptr<stella_vslam::data::landmark>>& all_landmarks,
+                                                   const std::set<std::shared_ptr<stella_vslam::data::landmark>>& local_landmarks,
+                                                   const stella_vslam::Mat44_t& current_camera_pose) {
     map_segment::map map;
     auto message = map.add_messages();
     message->set_tag("0");
@@ -90,13 +90,13 @@ std::string data_serializer::serialize_as_protobuf(const std::vector<std::shared
     // 1. keyframe registration
 
     std::unordered_map<unsigned int, double> next_keyframe_hash_map;
-    for (const auto keyfrm : keyfrms) {
+    for (const auto& keyfrm : keyfrms) {
         if (!keyfrm || keyfrm->will_be_erased()) {
             continue;
         }
 
         const auto id = keyfrm->id_;
-        const auto pose = keyfrm->get_cam_pose();
+        const auto pose = keyfrm->get_pose_cw();
         const auto pose_hash = get_mat_hash(pose); // get zipped code (likely hash)
 
         next_keyframe_hash_map[id] = pose_hash;
@@ -133,7 +133,7 @@ std::string data_serializer::serialize_as_protobuf(const std::vector<std::shared
     *keyframe_hash_map_ = next_keyframe_hash_map;
 
     // 2. graph registration
-    for (const auto keyfrm : keyfrms) {
+    for (const auto& keyfrm : keyfrms) {
         if (!keyfrm || keyfrm->will_be_erased()) {
             continue;
         }
@@ -141,9 +141,9 @@ std::string data_serializer::serialize_as_protobuf(const std::vector<std::shared
         const unsigned int keyfrm_id = keyfrm->id_;
 
         // covisibility graph
-        const auto covisibilities = keyfrm->graph_node_->get_covisibilities_over_weight(100);
+        const auto covisibilities = keyfrm->graph_node_->get_covisibilities_over_min_num_shared_lms(100);
         if (!covisibilities.empty()) {
-            for (const auto covisibility : covisibilities) {
+            for (const auto& covisibility : covisibilities) {
                 if (!covisibility || covisibility->will_be_erased()) {
                     continue;
                 }
@@ -166,7 +166,7 @@ std::string data_serializer::serialize_as_protobuf(const std::vector<std::shared
 
         // loop edges
         const auto loop_edges = keyfrm->graph_node_->get_loop_edges();
-        for (const auto loop_edge : loop_edges) {
+        for (const auto& loop_edge : loop_edges) {
             if (!loop_edge) {
                 continue;
             }

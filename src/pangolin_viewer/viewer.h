@@ -3,15 +3,15 @@
 
 #include "pangolin_viewer/color_scheme.h"
 
-#include "openvslam/type.h"
-#include "openvslam/util/yaml.h"
+#include "stella_vslam/type.h"
+#include "stella_vslam/util/yaml.h"
 
 #include <memory>
 #include <mutex>
 
 #include <pangolin/pangolin.h>
 
-namespace openvslam {
+namespace stella_vslam {
 
 class config;
 class system;
@@ -21,7 +21,7 @@ class frame_publisher;
 class map_publisher;
 } // namespace publish
 
-} // namespace openvslam
+} // namespace stella_vslam
 
 namespace pangolin_viewer {
 
@@ -34,9 +34,10 @@ public:
      * @param frame_publisher
      * @param map_publisher
      */
-    viewer(const YAML::Node& yaml_node, openvslam::system* system,
-           const std::shared_ptr<openvslam::publish::frame_publisher>& frame_publisher,
-           const std::shared_ptr<openvslam::publish::map_publisher>& map_publisher);
+    viewer(const YAML::Node& yaml_node,
+           const std::shared_ptr<stella_vslam::system>& system,
+           const std::shared_ptr<stella_vslam::publish::frame_publisher>& frame_publisher,
+           const std::shared_ptr<stella_vslam::publish::map_publisher>& map_publisher);
 
     /**
      * Main loop for window refresh
@@ -106,7 +107,7 @@ private:
      * @param gl_cam_pose_wc
      * @param width
      */
-    void draw_camera(const openvslam::Mat44_t& cam_pose_wc, const float width) const;
+    void draw_camera(const stella_vslam::Mat44_t& cam_pose_wc, const float width) const;
 
     /**
      * Draw a frustum of a camera
@@ -131,11 +132,11 @@ private:
     void check_state_transition();
 
     //! system
-    openvslam::system* system_;
+    const std::shared_ptr<stella_vslam::system> system_;
     //! frame publisher
-    const std::shared_ptr<openvslam::publish::frame_publisher> frame_publisher_;
+    const std::shared_ptr<stella_vslam::publish::frame_publisher> frame_publisher_;
     //! map publisher
-    const std::shared_ptr<openvslam::publish::map_publisher> map_publisher_;
+    const std::shared_ptr<stella_vslam::publish::map_publisher> map_publisher_;
 
     const unsigned int interval_ms_;
 
@@ -147,6 +148,7 @@ private:
     const float point_size_;
     const float camera_size_;
     const float camera_line_width_;
+    const unsigned int menu_width_;
 
     const color_scheme cs_;
 
@@ -162,6 +164,8 @@ private:
     std::unique_ptr<pangolin::Var<bool>> menu_pause_;
     std::unique_ptr<pangolin::Var<bool>> menu_reset_;
     std::unique_ptr<pangolin::Var<bool>> menu_terminate_;
+    std::unique_ptr<pangolin::Var<int>> menu_min_shared_lms_;
+    std::unique_ptr<pangolin::Var<std::string>> menu_kf_id_;
     std::unique_ptr<pangolin::Var<float>> menu_frm_size_;
     std::unique_ptr<pangolin::Var<float>> menu_lm_size_;
 

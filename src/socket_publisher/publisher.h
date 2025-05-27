@@ -7,7 +7,7 @@
 #include <mutex>
 #include <memory>
 
-namespace openvslam {
+namespace stella_vslam {
 
 class config;
 class system;
@@ -17,15 +17,16 @@ class frame_publisher;
 class map_publisher;
 } // namespace publish
 
-} // namespace openvslam
+} // namespace stella_vslam
 
 namespace socket_publisher {
 
 class publisher {
 public:
-    publisher(const YAML::Node& yaml_node, openvslam::system* system,
-              const std::shared_ptr<openvslam::publish::frame_publisher>& frame_publisher,
-              const std::shared_ptr<openvslam::publish::map_publisher>& map_publisher);
+    publisher(const YAML::Node& yaml_node,
+              const std::shared_ptr<stella_vslam::system>& system,
+              const std::shared_ptr<stella_vslam::publish::frame_publisher>& frame_publisher,
+              const std::shared_ptr<stella_vslam::publish::map_publisher>& map_publisher);
 
     void run();
 
@@ -37,7 +38,7 @@ public:
     bool is_terminated();
 
 private:
-    openvslam::system* system_;
+    const std::shared_ptr<stella_vslam::system> system_;
     const unsigned int emitting_interval_;
     const unsigned int image_quality_;
 
@@ -47,7 +48,7 @@ private:
     void callback(const std::string& message);
 
     /* thread controls */
-    bool check_and_execute_pause();
+    bool pause_if_requested();
 
     bool terminate_is_requested();
     void terminate();
