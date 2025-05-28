@@ -392,7 +392,7 @@ void map_database::to_json(nlohmann::json& json_keyfrms, nlohmann::json& json_la
         cpt++;
         spdlog::info("encoding keyframes: {}  to store", id);
         assert(keyfrm);
-        spdlog::info("id = id?", id);
+        spdlog::info("id = id?");
         assert(id == keyfrm->id_);
         spdlog::info("errazed? {}", keyfrm->will_be_erased());
         assert(!keyfrm->will_be_erased());
