@@ -397,7 +397,7 @@ void map_database::to_json(nlohmann::json& json_keyfrms, nlohmann::json& json_la
         spdlog::info("errazed? {}", keyfrm->will_be_erased());
         assert(!keyfrm->will_be_erased());
         keyfrm->graph_node_->update_connections();
-        spdlog::info("exist? {}", keyfrms.count(std::to_string(id));
+        spdlog::info("exist? {}", keyfrms.count(std::to_string(id)));
         assert(!keyfrms.count(std::to_string(id)));
         keyfrms[std::to_string(id)] = keyfrm->to_json();
     }
