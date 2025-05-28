@@ -384,7 +384,7 @@ void map_database::to_json(nlohmann::json& json_keyfrms, nlohmann::json& json_la
     spdlog::info("encoding {} keyframes to store", keyframes_.size());
     std::map<std::string, nlohmann::json> keyfrms;
     int cpt;
-    cpt=0
+    cpt=0;
     for (const auto id_keyfrm : keyframes_) {
         const auto id = id_keyfrm.first;
         const auto keyfrm = id_keyfrm.second;
