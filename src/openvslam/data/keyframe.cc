@@ -142,7 +142,7 @@ nlohmann::json keyframe::to_json() const {
             {"depth_thr", depth_thr_},
             // camera pose
             {"rot_cw", convert_rotation_to_json(cam_pose_cw_.block<3, 3>(0, 0))},
-            {"trans_cw", convert_translation_to_json(cam_pose_cw_.block<3, 1>(0, 3))},
+            {"trans_cw", convert_translation_to_json(cam_pose_cw_.block<3, 1>(0, 3))}};
             // features and observations
             /*
             {"n_keypts", num_keypts_},
