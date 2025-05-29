@@ -383,27 +383,16 @@ void map_database::to_json(nlohmann::json& json_keyfrms, nlohmann::json& json_la
     // Save each keyframe as json
     spdlog::info("encoding {} keyframes to store", keyframes_.size());
     std::map<std::string, nlohmann::json> keyfrms;
-    int cpt;
-    cpt=0;
     for (const auto id_keyfrm : keyframes_) {
         const auto id = id_keyfrm.first;
         const auto keyfrm = id_keyfrm.second;
-        spdlog::info("frame nb {}", cpt);
-        cpt++;
-        spdlog::info("encoding keyframes: {}  to store", id);
         assert(keyfrm);
-        spdlog::info("id = id?");
         assert(id == keyfrm->id_);
-        spdlog::info("errazed? {}", keyfrm->will_be_erased());
         assert(!keyfrm->will_be_erased());
         keyfrm->graph_node_->update_connections();
-        spdlog::info("exist? {}", keyfrms.count(std::to_string(id)));
         assert(!keyfrms.count(std::to_string(id)));
         keyfrms[std::to_string(id)] = keyfrm->to_json();
-        spdlog::info("finished frame");
     }
-    spdlog::info("encoding {} keyframes to store", keyframes_.size());
-    spdlog::info("done all frames");
     json_keyfrms = keyfrms;
 
     // Save each 3D point as json
@@ -424,4 +413,3 @@ void map_database::to_json(nlohmann::json& json_keyfrms, nlohmann::json& json_la
 
 } // namespace data
 } // namespace openvslam
-
