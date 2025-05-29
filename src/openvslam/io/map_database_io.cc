@@ -29,9 +29,9 @@ void map_database_io::save_message_pack(const std::string& path) {
     spdlog::info("map ok");
 
     nlohmann::json json{/*{"cameras", cameras},*/
-                        {"keyframes", keyfrms}
-                        /*{"landmarks", landmarks},
-                        {"frame_next_id", static_cast<unsigned int>(data::frame::next_id_)},
+                        {"keyframes", keyfrms},
+                        {"landmarks", landmarks}
+                        /*{"frame_next_id", static_cast<unsigned int>(data::frame::next_id_)},
                         {"keyframe_next_id", static_cast<unsigned int>(data::keyframe::next_id_)},
                         {"landmark_next_id", static_cast<unsigned int>(data::landmark::next_id_)}*/};
 
