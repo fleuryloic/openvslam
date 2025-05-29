@@ -407,9 +407,9 @@ void map_database::to_json(nlohmann::json& json_keyfrms, nlohmann::json& json_la
     json_keyfrms = keyfrms;
 
     // Save each 3D point as json
-    //spdlog::info("encoding {} landmarks to store", landmarks_.size());
+    spdlog::info("encoding {} landmarks to store", landmarks_.size());
     std::map<std::string, nlohmann::json> landmarks;
-    /*for (const auto id_lm : landmarks_) {
+    for (const auto id_lm : landmarks_) {
         const auto id = id_lm.first;
         const auto& lm = id_lm.second;
         assert(lm);
@@ -419,7 +419,6 @@ void map_database::to_json(nlohmann::json& json_keyfrms, nlohmann::json& json_la
         assert(!landmarks.count(std::to_string(id)));
         landmarks[std::to_string(id)] = lm->to_json();
     }
-    */
     json_landmarks = landmarks;
 }
 
