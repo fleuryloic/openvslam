@@ -1,8 +1,8 @@
-#ifndef STELLA_VSLAM_SYSTEM_H
-#define STELLA_VSLAM_SYSTEM_H
+#ifndef OPENVSLAM_SYSTEM_H
+#define OPENVSLAM_SYSTEM_H
 
-#include "stella_vslam/type.h"
-#include "stella_vslam/data/bow_vocabulary_fwd.h"
+#include "openvslam/type.h"
+#include "openvslam/data/bow_vocabulary_fwd.h"
 
 #include <string>
 #include <thread>
@@ -11,9 +11,9 @@
 #include <atomic>
 #include <memory>
 
-#include <opencv2/core/mat.hpp>
+#include <opencv2/core/core.hpp>
 
-namespace stella_vslam {
+namespace openvslam {
 
 class config;
 class tracking_module;
@@ -25,30 +25,15 @@ class base;
 } // namespace camera
 
 namespace data {
-class frame;
 class camera_database;
-class orb_params_database;
 class map_database;
 class bow_database;
 } // namespace data
-
-namespace feature {
-class orb_extractor;
-struct orb_params;
-} // namespace feature
-
-namespace marker_detector {
-class base;
-} // namespace marker_detector
 
 namespace publish {
 class map_publisher;
 class frame_publisher;
 } // namespace publish
-
-namespace io {
-class map_database_io_base;
-}
 
 class system {
 public:
@@ -60,9 +45,6 @@ public:
 
     //-----------------------------------------
     // system startup and shutdown
-
-    //! Print system information
-    void print_info();
 
     //! Startup the SLAM system
     void startup(const bool need_initialize = true);
@@ -79,10 +61,10 @@ public:
     //! Save the keyframe trajectory in the specified format
     void save_keyframe_trajectory(const std::string& path, const std::string& format) const;
 
-    //! Load the map database from file
+    //! Load the map database from the MessagePack file
     void load_map_database(const std::string& path) const;
 
-    //! Save the map database to file
+    //! Save the map database to the MessagePack file
     void save_map_database(const std::string& path) const;
 
     //! Get the map publisher
@@ -112,9 +94,6 @@ public:
     //! The loop detector is enabled or not
     bool loop_detector_is_enabled() const;
 
-    //! Request loop closure
-    bool request_loop_closure(int keyfrm1_id, int keyfrm2_id);
-
     //! Loop BA is running or not
     bool loop_BA_is_running() const;
 
@@ -124,21 +103,16 @@ public:
     //-----------------------------------------
     // data feeding methods
 
-    std::shared_ptr<Mat44_t> feed_frame(const data::frame& frm, const cv::Mat& img);
-
     //! Feed a monocular frame to SLAM system
     //! (NOTE: distorted images are acceptable if calibrated)
-    data::frame create_monocular_frame(const cv::Mat& img, const double timestamp, const cv::Mat& mask = cv::Mat{});
     std::shared_ptr<Mat44_t> feed_monocular_frame(const cv::Mat& img, const double timestamp, const cv::Mat& mask = cv::Mat{});
 
     //! Feed a stereo frame to SLAM system
     //! (Note: Left and Right images must be stereo-rectified)
-    data::frame create_stereo_frame(const cv::Mat& left_img, const cv::Mat& right_img, const double timestamp, const cv::Mat& mask = cv::Mat{});
     std::shared_ptr<Mat44_t> feed_stereo_frame(const cv::Mat& left_img, const cv::Mat& right_img, const double timestamp, const cv::Mat& mask = cv::Mat{});
 
     //! Feed an RGBD frame to SLAM system
     //! (Note: RGB and Depth images must be aligned)
-    data::frame create_RGBD_frame(const cv::Mat& rgb_img, const cv::Mat& depthmap, const double timestamp, const cv::Mat& mask);
     std::shared_ptr<Mat44_t> feed_RGBD_frame(const cv::Mat& rgb_img, const cv::Mat& depthmap, const double timestamp, const cv::Mat& mask = cv::Mat{});
 
     //-----------------------------------------
@@ -181,14 +155,6 @@ public:
     //!! Termination of the system is requested or not
     bool terminate_is_requested() const;
 
-    //-----------------------------------------
-    // config
-
-    camera::base* get_camera() const;
-
-    //! depthmap factor (pixel_value / depthmap_factor = true_depth)
-    double depthmap_factor_ = 1.0;
-
 private:
     //! Check reset request of the system
     void check_reset_request();
@@ -206,12 +172,6 @@ private:
 
     //! camera database
     data::camera_database* cam_db_ = nullptr;
-
-    //! parameters for orb feature extraction
-    feature::orb_params* orb_params_ = nullptr;
-
-    //! orb_params database
-    data::orb_params_database* orb_params_db_ = nullptr;
 
     //! map database
     data::map_database* map_db_ = nullptr;
@@ -235,24 +195,10 @@ private:
     //! global optimization thread
     std::unique_ptr<std::thread> global_optimization_thread_ = nullptr;
 
-    // ORB extractors
-    //! ORB extractor for left/monocular image
-    feature::orb_extractor* extractor_left_ = nullptr;
-    //! ORB extractor for right image
-    feature::orb_extractor* extractor_right_ = nullptr;
-    //! ORB extractor only when used in initializing
-    feature::orb_extractor* ini_extractor_left_ = nullptr;
-
-    //! marker detector
-    marker_detector::base* marker_detector_ = nullptr;
-
     //! frame publisher
     std::shared_ptr<publish::frame_publisher> frame_publisher_ = nullptr;
     //! map publisher
     std::shared_ptr<publish::map_publisher> map_publisher_ = nullptr;
-
-    //! map I/O
-    std::shared_ptr<io::map_database_io_base> map_database_io_ = nullptr;
 
     //! system running status flag
     std::atomic<bool> system_is_running_{false};
@@ -272,11 +218,8 @@ private:
 
     //! mutex for flags of enable/disable loop detector
     mutable std::mutex mtx_loop_detector_;
-
-    //! Temporary variables for visualization
-    std::vector<cv::KeyPoint> keypts_;
 };
 
-} // namespace stella_vslam
+} // namespace openvslam
 
-#endif // STELLA_VSLAM_SYSTEM_H
+#endif // OPENVSLAM_SYSTEM_H

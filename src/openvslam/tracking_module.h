@@ -1,21 +1,20 @@
-#ifndef STELLA_VSLAM_TRACKING_MODULE_H
-#define STELLA_VSLAM_TRACKING_MODULE_H
+#ifndef OPENVSLAM_TRACKING_MODULE_H
+#define OPENVSLAM_TRACKING_MODULE_H
 
-#include "stella_vslam/type.h"
-#include "stella_vslam/data/frame.h"
-#include "stella_vslam/module/initializer.h"
-#include "stella_vslam/module/relocalizer.h"
-#include "stella_vslam/module/keyframe_inserter.h"
-#include "stella_vslam/module/frame_tracker.h"
+#include "openvslam/type.h"
+#include "openvslam/data/frame.h"
+#include "openvslam/module/initializer.h"
+#include "openvslam/module/relocalizer.h"
+#include "openvslam/module/keyframe_inserter.h"
+#include "openvslam/module/frame_tracker.h"
 
 #include <mutex>
 #include <memory>
-#include <future>
 
-#include <opencv2/core/types.hpp>
+#include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
-namespace stella_vslam {
+namespace openvslam {
 
 class system;
 class mapping_module;
@@ -26,8 +25,13 @@ class map_database;
 class bow_database;
 } // namespace data
 
+namespace feature {
+class orb_extractor;
+} // namespace feature
+
 // tracker state
 enum class tracker_state_t {
+    NotInitialized,
     Initializing,
     Tracking,
     Lost
@@ -37,7 +41,7 @@ struct pose_request {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     bool mode_2d_;
-    Mat44_t pose_cw_;
+    Mat44_t pose_;
     Vec3_t normal_vector_;
 };
 
@@ -46,7 +50,7 @@ public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
     //! Constructor
-    tracking_module(const std::shared_ptr<config>& cfg, camera::base* camera, data::map_database* map_db,
+    tracking_module(const std::shared_ptr<config>& cfg, system* system, data::map_database* map_db,
                     data::bow_vocabulary* bow_vocab, data::bow_database* bow_db);
 
     //! Destructor
@@ -59,21 +63,36 @@ public:
     void set_global_optimization_module(global_optimization_module* global_optimizer);
 
     //-----------------------------------------
-    // interfaces for mapping module and global optimization module
-
-    //! Replace the landmarks in last frame
-    void replace_landmarks_in_last_frm(nondeterministic::unordered_map<std::shared_ptr<data::landmark>, std::shared_ptr<data::landmark>>& replaced_lms);
-
-    //-----------------------------------------
     // interfaces
 
-    //! Main stream of the tracking module
-    std::shared_ptr<Mat44_t> feed_frame(data::frame frame);
+    //! Set mapping module status
+    void set_mapping_module_status(const bool mapping_is_enabled);
+
+    //! Get mapping module status
+    bool get_mapping_module_status() const;
+
+    //! Get the keypoints of the initial frame
+    std::vector<cv::KeyPoint> get_initial_keypoints() const;
+
+    //! Get the keypoint matches between the initial frame and the current frame
+    std::vector<int> get_initial_matches() const;
+
+    //! Track a monocular frame
+    //! (NOTE: distorted images are acceptable if calibrated)
+    std::shared_ptr<Mat44_t> track_monocular_image(const cv::Mat& img, const double timestamp, const cv::Mat& mask = cv::Mat{});
+
+    //! Track a stereo frame
+    //! (Note: Left and Right images must be stereo-rectified)
+    std::shared_ptr<Mat44_t> track_stereo_image(const cv::Mat& left_img_rect, const cv::Mat& right_img_rect, const double timestamp, const cv::Mat& mask = cv::Mat{});
+
+    //! Track an RGBD frame
+    //! (Note: RGB and Depth images must be aligned)
+    std::shared_ptr<Mat44_t> track_RGBD_image(const cv::Mat& img, const cv::Mat& depthmap, const double timestamp, const cv::Mat& mask = cv::Mat{});
 
     //! Request to update the pose to a given one.
     //! Return failure in case if previous request was not finished yet.
-    bool request_relocalize_by_pose(const Mat44_t& pose_cw);
-    bool request_relocalize_by_pose_2d(const Mat44_t& pose_cw, const Vec3_t& normal_vector);
+    bool request_relocalize_by_pose(const Mat44_t& pose);
+    bool request_relocalize_by_pose_2d(const Mat44_t& pose, const Vec3_t& normal_vector);
 
     //-----------------------------------------
     // management for reset process
@@ -82,19 +101,10 @@ public:
     void reset();
 
     //-----------------------------------------
-    // management for stop keyframe insertion process
-
-    //! Request to stop keyframe insertion in tracking module
-    std::future<void> async_stop_keyframe_insertion();
-
-    //! Request to start keyframe insertion in tracking module
-    std::future<void> async_start_keyframe_insertion();
-
-    //-----------------------------------------
     // management for pause process
 
     //! Request to pause the tracking module
-    std::shared_future<void> async_pause();
+    void request_pause();
 
     //! Check if the pause of the tracking module is requested or not
     bool pause_is_requested() const;
@@ -113,6 +123,12 @@ public:
     //! camera model
     camera::base* camera_;
 
+    //! depth threshold (Ignore depths farther than true_depth_thr_ times the baseline.)
+    double true_depth_thr_ = 40.0;
+
+    //! depthmap factor (pixel_value / depthmap_factor = true_depth)
+    double depthmap_factor_ = 1.0;
+
     //! closest keyframes thresholds (by distance and angle) to relocalize with when updating by pose
     double reloc_distance_threshold_ = 0.2;
     double reloc_angle_threshold_ = 0.45;
@@ -123,27 +139,31 @@ public:
     //! If true, use robust_matcher for relocalization request
     bool use_robust_matcher_for_relocalization_request_ = false;
 
-    //! Max number of local keyframes for tracking
-    unsigned int max_num_local_keyfrms_ = 60;
-
     //-----------------------------------------
     // variables
 
     //! latest tracking state
-    tracker_state_t tracking_state_ = tracker_state_t::Initializing;
+    tracker_state_t tracking_state_ = tracker_state_t::NotInitialized;
+    //! last tracking state
+    tracker_state_t last_tracking_state_ = tracker_state_t::NotInitialized;
 
     //! current frame and its image
     data::frame curr_frm_;
+    //! image of the current frame
+    cv::Mat img_gray_;
+
+    //! elapsed microseconds for each tracking
+    double elapsed_ms_ = 0.0;
 
 protected:
     //-----------------------------------------
     // tracking processes
 
+    //! Main stream of the tracking module
+    void track();
+
     //! Try to initialize with the current frame
     bool initialize();
-
-    //! Main stream of the tracking module
-    bool track(bool relocalization_is_needed);
 
     //! Track the current frame
     bool track_current_frame();
@@ -157,13 +177,14 @@ protected:
     //! Update the motion model using the current and last frames
     void update_motion_model();
 
+    //! Replace the landmarks if the `replaced` member has the valid pointer
+    void apply_landmark_replace();
+
     //! Update the camera pose of the last frame
     void update_last_frame();
 
     //! Optimize the camera pose of the current frame
-    bool optimize_current_frame_with_local_map(unsigned int& num_tracked_lms,
-                                               unsigned int& num_reliable_lms,
-                                               const unsigned int min_num_obs_thr);
+    bool optimize_current_frame_with_local_map();
 
     //! Update the local map
     void update_local_map();
@@ -172,17 +193,25 @@ protected:
     void search_local_landmarks();
 
     //! Check the new keyframe is needed or not
-    bool new_keyframe_is_needed(unsigned int num_tracked_lms,
-                                unsigned int num_reliable_lms,
-                                const unsigned int min_num_obs_thr) const;
+    bool new_keyframe_is_needed() const;
 
     //! Insert the new keyframe derived from the current frame
     void insert_new_keyframe();
 
+    //! system
+    system* system_ = nullptr;
     //! mapping module
     mapping_module* mapper_ = nullptr;
     //! global optimization module
     global_optimization_module* global_optimizer_ = nullptr;
+
+    // ORB extractors
+    //! ORB extractor for left/monocular image
+    feature::orb_extractor* extractor_left_ = nullptr;
+    //! ORB extractor for right image
+    feature::orb_extractor* extractor_right_ = nullptr;
+    //! ORB extractor only when used in initializing
+    feature::orb_extractor* ini_extractor_left_ = nullptr;
 
     //! map_database
     data::map_database* map_db_ = nullptr;
@@ -213,16 +242,14 @@ protected:
     //! local landmarks
     std::vector<std::shared_ptr<data::landmark>> local_landmarks_;
 
+    //! the number of tracked keyframes in the current keyframe
+    unsigned int num_tracked_lms_ = 0;
+
     //! last frame
     data::frame last_frm_;
 
-    //! mutex for pause process
-    mutable std::mutex mtx_last_frm_;
-
-    //! ID of latest frame which succeeded in relocalization
+    //! latest frame ID which succeeded in relocalization
     unsigned int last_reloc_frm_id_ = 0;
-    //! timestamp of latest frame which succeeded in relocalization
-    double last_reloc_frm_timestamp_ = 0.0;
 
     //! motion model
     Mat44_t twist_;
@@ -234,12 +261,13 @@ protected:
     Mat44_t last_cam_pose_from_ref_keyfrm_;
 
     //-----------------------------------------
-    // management for stop_keyframe_insertion process
+    // mapping module status
 
-    //! mutex for stop_keyframe_insertion process
-    mutable std::mutex mtx_stop_keyframe_insertion_;
+    //! mutex for mapping module status
+    mutable std::mutex mtx_mapping_;
 
-    bool is_stopped_keyframe_insertion_ = false;
+    //! mapping module is enabled or not
+    bool mapping_is_enabled_ = true;
 
     //-----------------------------------------
     // management for pause process
@@ -247,14 +275,8 @@ protected:
     //! mutex for pause process
     mutable std::mutex mtx_pause_;
 
-    //! promise for pause
-    std::promise<void> promise_pause_;
-
-    //! future for pause
-    std::shared_future<void> future_pause_;
-
     //! Check the request frame and pause the tracking module
-    bool pause_if_requested();
+    bool check_and_execute_pause();
 
     //! the tracking module is paused or not
     bool is_paused_ = false;
@@ -279,6 +301,6 @@ protected:
     pose_request relocalize_by_pose_request_;
 };
 
-} // namespace stella_vslam
+} // namespace openvslam
 
-#endif // STELLA_VSLAM_TRACKING_MODULE_H
+#endif // OPENVSLAM_TRACKING_MODULE_H
