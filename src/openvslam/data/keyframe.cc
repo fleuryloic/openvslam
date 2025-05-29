@@ -139,12 +139,12 @@ nlohmann::json keyframe::to_json() const {
     return {{"src_frm_id", src_frm_id_},
             {"ts", timestamp_},
             {"cam", camera_->name_},
-            {"depth_thr", depth_thr_},
+            {"depth_thr", depth_thr_}
             // camera pose
             {"rot_cw", convert_rotation_to_json(cam_pose_cw_.block<3, 3>(0, 0))},
             {"trans_cw", convert_translation_to_json(cam_pose_cw_.block<3, 1>(0, 3))},
             // features and observations
-            {"n_keypts", num_keypts_},
+            /*{"n_keypts", num_keypts_},
             {"keypts", convert_keypoints_to_json(keypts_)},
             {"undists", convert_undistorted_to_json(undist_keypts_)},
             {"x_rights", stereo_x_right_},
@@ -157,7 +157,7 @@ nlohmann::json keyframe::to_json() const {
             // graph information
             {"span_parent", spanning_parent ? spanning_parent->id_ : -1},
             {"span_children", spanning_child_ids},
-            {"loop_edges", loop_edge_ids}};
+            {"loop_edges", loop_edge_ids}*/};
 }
 
 void keyframe::set_cam_pose(const Mat44_t& cam_pose_cw) {
